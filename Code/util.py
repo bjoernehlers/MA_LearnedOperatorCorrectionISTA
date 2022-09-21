@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 16 21:11:13 2022
-
-@author: Student
+some usefull functions
 """
 import os
 import matplotlib.pyplot as plt
@@ -88,6 +86,7 @@ class added_estimate():
             return (t-self.times[0])*(t_num_iter-1)
 
 class Timer():
+    # to help estimate how long the training will lass (not very accurate it some times gives back a negative eta)
     def __init__(self, num_iterations, est_func = time_estimate, path = None):
         self.t_0 = time.time()
         self.num_iterations = num_iterations
@@ -99,7 +98,7 @@ class Timer():
             self.write_to_file = True
             check_path(path)
 
-
+#function to call when an esimate needs to be made
     def make_estimate(self,iteration, notes = ''):
         t = time.time()
         t_e = self.est_func(t-self.t_0,iteration,self.num_iterations)
@@ -111,7 +110,7 @@ class Timer():
             file.write(f'{(t-self.t_0)/60} minutes since start'  )
             file.write(notes + '\n')
             file.close()
-
+# to close the timer and log how long trainng took
     def finished(self):
         t_end = time.time() 
         print(f'finisched at {time.asctime(time.localtime(t_end))} after {(t_end - self.t_0)/3600:.1f}h')
@@ -122,20 +121,9 @@ class Timer():
         if self.write_to_file:
             os.rename(f'{self.path}eta.txt',f'{self.path}finisched.txt')
 
-def plt_from_dic(a, title = None, save_path = None, doent_show = False):
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    for e in a:
-        ax.plot(a.get(e),label=e)
-    ax.legend()
-    if not save_path is None:
-        fig.savefig(save_path)
-    if doent_show:
-        plt.close(fig)
-    else:
-        plt.show(fig)
 
 def to_np_array(a):
+    #odel elemte to numpy array
     if type(a) == odl.discr.discr_space.DiscretizedSpaceElement:
             a = a.asarray()
     return a
@@ -315,10 +303,10 @@ def sp(a,b):
     """takes to numpy arrays with the same number of elements and takes the L2 skalar produkt
 
     Args:
-        a (np.array): _description_
-        b (np.array): _description_
+        a (np.array): left input
+        b (np.array): right input
 
     Returns:
-        float: _description_
+        float: scalar prroduct
     """
     return a.reshape(a.size)@b.reshape(b.size)

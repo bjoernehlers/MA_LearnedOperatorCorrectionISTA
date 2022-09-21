@@ -1,4 +1,12 @@
+    """
+        call this skript in Terminla 
 
+        python Setup_and_training.py run_name
+
+        with run_name name of run for tha conf file is already created the training will then start
+    Returns:
+        none
+    """
 import numpy as np
 import random
 import astra
@@ -23,12 +31,14 @@ from Iteration_Steps import ISTA_step,GD_step
 import os
 import sys
 
+# loading the config file
 run_name = sys.argv[-1]
 print(run_name)
 # if run_name == 'setup_and_train_mR_swaped.py':
 #     run_name = 'Test_2'
 c = config(run_name)
 
+#selecting device for training
 
 device = f"cuda:{c.gpu_idx}" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device")
@@ -62,7 +72,7 @@ elif c.step_type == 'GD':
         grad_R = R.gradient
     step_op = GD_step(c.mu,c.lam,grad_R)
 
-#Test
+#Test (only works for ISTA)
 def ISTA_obj_func(op,y,lam,x):
     return 1/(2*lam)*np.linalg.norm((op(x)-y).reshape(y.size),2)**2+np.linalg.norm(x.reshape(x.size),1)
 def obj_func(op,y,lam,R,x):
@@ -129,6 +139,7 @@ adj_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(adj_optimizer, 'min',
 summary(fw_model, input_size=(1, 1, c.x_res, c.y_res), depth=4)
 summary(adj_model, input_size=(1, 1,c.num_angles , c.detector_points), depth=4)
 
+
 rand_shift_dict = dict()
 rand_shift_dict.update({"num_params":c.num_params_shift})
 rand_shift_dict.update({"amp_range":c.amp_range})
@@ -148,6 +159,7 @@ for i in range(c.start_iteration,c.num_iterations):
     print("#########")
     print(i)
     print("#########")
+    #computing dataset for new itration
     D.renew_rand_train_xis_Ops(c.num_rand_ops_load,make_new = False)
     D.renew_rand_train_xis_Ops(c.num_rand_ops_new,make_new = True,add=True)
     D.renew_rand_train_xis_Ys(c.num_rand)
@@ -156,6 +168,7 @@ for i in range(c.start_iteration,c.num_iterations):
     else:
         D.update_x_is(fw_model,adj_model,i)
 
+    #forward traing
     val_set = D.get_fw_data('val',selection_rule='All')
     val_loader = torch.utils.data.DataLoader(val_set, batch_size=1,
                                                     shuffle=False)
@@ -173,18 +186,7 @@ for i in range(c.start_iteration,c.num_iterations):
     comp_train_loss = comp_train_loss +  train_loss
     comp_val_loss =comp_val_loss +  val_loss
     
-    # model_name = 'fw_model'
-    # fig, axs = plt.subplots()
-    # axs.plot(train_loss, label = 'train loss')
-    # axs.plot(val_loss, label = 'val loss')
-    # axs.legend()
-    # axs.set_title(f"{model_name} loss, iteration:{i}")
-    # name = f"{model_name}_loss_iteration_{i}"
-    # fig.savefig(f"{c.path}{name}.{c.fileending}")
-    # if c.doent_show:
-    #     plt.close(fig)
-    # else:
-    #     plt.show(fig)
+    # adjoint trining
 
     val_set = D.get_adj_data(fw_model,'val',selection_rule='All')
     val_loader = torch.utils.data.DataLoader(val_set, batch_size=1,
@@ -202,18 +204,7 @@ for i in range(c.start_iteration,c.num_iterations):
     adjoint_comp_train_loss = adjoint_comp_train_loss + train_loss
     adjoint_comp_val_loss = adjoint_comp_val_loss + val_loss
         
-    # model_name = 'adj_model'    
-    # fig, axs = plt.subplots()
-    # axs.plot(train_loss, label = 'train loss')
-    # axs.plot(val_loss, label = 'val loss')
-    # axs.legend()
-    # axs.set_title(f"{model_name} loss, iteration:{i}")
-    # name = f"{model_name}_loss_iteration_{i}"
-    # fig.savefig(f"{c.path}{name}.{c.fileending}")
-    # if c.doent_show:
-    #     plt.close(fig)
-    # else:
-    #     plt.show(fig)
+
 
     if c.overwrite_model_saves:
         torch.save(fw_model.state_dict(), f'{c.model_path}model')

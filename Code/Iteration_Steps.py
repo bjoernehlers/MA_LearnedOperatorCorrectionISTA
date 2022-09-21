@@ -1,3 +1,4 @@
+# various function to make a step in GD or proximal gradient descent
 import numpy as np
 import torch
 
@@ -42,13 +43,42 @@ def get_F_abl_normed(A,y,adj_A = None,norm = None):
     return F_abl
 
 def GD_step(mu,lam,grad_R,pos_constraint = False):
+    """gives back an opertor to compute one iteration in the gradien descent methd
+
+    Args:
+        mu : stepsize
+        lam : regulariztion paramter
+        grad_R : derivative of penatlty term
+        pos_constraint (bool, optional): sets if a positivity constraint s used. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
     if pos_constraint:
         def step(x,F_abl_x):
+            """GD step with positivity constaint
+
+            Args:
+                x (np.array): x_{i-1}
+                F_abl_x (np.array): gradient of F(x)
+
+            Returns:
+                x_i
+            """
             x = x - mu*(F_abl_x-lam*grad_R(x).asarray())
             x = np.maximum(x,0)
             return x
     else:
         def step(x,F_abl_x):
+            """GD step with out positivity constaint
+
+            Args:
+                x (np.array): x_{i-1}
+                F_abl_x (np.array): gradient of F(x)
+
+            Returns:
+                x_i
+            """
             x = x - mu*(F_abl_x-lam*grad_R(x).asarray())
             return(x)
     return step 

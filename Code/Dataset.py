@@ -1,4 +1,4 @@
-
+# contains a class that creates and containes the trainng data
 from logging import lastResort
 from sqlite3 import DatabaseError
 import numpy as np
@@ -13,6 +13,7 @@ from ray_transforms import get_ray_trafo, get_static_ray_trafo
 from util import get_op,sparse_Mat,rand_shift_params,get_shift,error_for_y,im_norm
 
 class Xis():
+    #object to store the trainings data wit coordinate  (op,y,x_i)
     def __init__(self) -> None:
         self.xi_List = []
         self.iter_idx = [0,0,0]
@@ -94,6 +95,7 @@ class Xis():
         return l
 
 class Xis_OPY_iterator():
+    # for looping trugh the operators and y of x_i
     def __init__(self,parent) -> None:
         self.iter_idx = [0,0]
         self.parent = parent
@@ -118,6 +120,7 @@ class Xis_OPY_iterator():
 
 
 class Xis_Y_iterator():
+    # for looping trugh y of an Xis object
     def __init__(self,parent) -> None:
         self.iter_idx = [0,0]
         self.parent = parent
@@ -141,6 +144,7 @@ class Xis_Y_iterator():
             raise StopIteration
 
 class Xis_Op_iterator():
+    # for looping trugh the operators  of an Xis object
     def __init__(self,parent) -> None:
         self.iter_idx = 0
         self.parent = parent
@@ -159,28 +163,17 @@ class Xis_Op_iterator():
 
 
 class DataSet():
-    # phantoms ,load or create on the fly (saveble with numpy)
-    # static geometry?
-    # shifts ,load  (saveble as np.array)
-    # radon shift operators 
-    #   ,load(storage expansive) or on the fly(computaitional expensive)
-    #   (op as sparse matrix saveble)
-    # y_e same for each eppoch? if random each time works that would be better 
-    # x_0 ,loading only makes sense if the shifts and phantoms are fixed 
-    #   and it propably dosnt save mauch time
-    # ISTA / GD ? seperate classes?
-    # x_i have to be computed each iterations 
-    #   for that the model and lam,mu are needed
-    # Output (switches are needed)
-    # fw [A_s x_i,A x_i],[x_i, A x_i]
-    # adj [A_s^*(M_fw(x_i)-y_e),A^*(M_fw(x_i)-y_e)]
-    #   ,[A_s^*(M_fw(x_i)-y_e),A^*(M_fw(x_i)-y_e)]
-    # comb [x_i,A^*(A x_i - y_e)]
-    # radom subset (the lower iterations of a x_i have to be computed anyway,
-    #                but we maybe can save computation time without loosing 
-    #                performence)
+#class for creatingg the dataset
 
     def __init__(self,conf_object: config,static_op,device,step_op=None) -> None:
+        """
+    builds the basic sturcture for training usind Xis objects
+        Args:
+            conf_object (config): conf file
+            static_op (_type_): uncorrected operator
+            device (_type_): 
+            step_op (_type_, optional): operator for getng the nexdt iteraes. Defaults to None.
+        """
         self.c = conf_object
         if self.c.just_one:
             self.c.true_op_load_num = 1
@@ -205,6 +198,19 @@ class DataSet():
         self.step_op = step_op
         self.device = device
     def get_train_phantoms(self,num_fixed,num_rand=0,phantom_path=None):
+        """_summary_
+
+        Args:
+            num_fixed (int): number of fixed phantoms 
+            num_rand (int, optional):number of randomphantoms. Defaults to 0.
+            phantom_path (_type_, optional): path to the phantoms if they should be loaded and not created. Defaults to None.
+
+        Raises:
+            ValueError: if num_fixed+num_rand>length of phantom list in path
+
+        Returns:
+            list: list of phantoms
+        """
         fixed_phantoms = list()
         rand_phantoms = list()
         if phantom_path is None:
@@ -243,6 +249,7 @@ class DataSet():
             return rand_phantoms
 
     def build_scelleton(self,Operator_list,phantoms=[],x_is = Xis()):
+        # build nested lists for an Xi_
         for op in Operator_list:
             x_is.append(op)
         for op,l in Xis_Op_iterator(x_is):
@@ -251,6 +258,12 @@ class DataSet():
                 l.append([y_e,[]])
 
     def renew_fixed_train_xis_Ys(self,num_fixed=None,phantom_path=None):
+        """renews the y_i of the fixed Xis object
+
+        Args:
+            num_fixed (_type_, optional): number of phantoms after renewing. Defaults to None. then c.numfixed is used
+            phantom_path (_type_, optional): path if thay should be loaded. Defaults to None.
+        """
         if num_fixed is None:
             num_fixed = self.c.num_fixed
         phantoms = self.get_train_phantoms(num_fixed=num_fixed,phantom_path=phantom_path)
@@ -261,6 +274,13 @@ class DataSet():
                 l.append([y_e,[]])
 
     def renew_rand_train_xis_Ops(self,num_rand_ops=None,make_new = False,add = False):
+        """renews training xis in the rand Xis object
+
+        Args:
+            num_rand_ops (_type_, optional): . Defaults to None. then c.numrand ops
+            make_new (bool, optional): if they schould not be loaded from a list. Defaults to False.
+            add (bool, optional): if the new operators schould be added to the alred exiting operators and not replace them. Defaults to False.
+        """
         if num_rand_ops is None:
             num_rand_ops = self.c.num_rand_ops
         rand_ops_params_list = list()
@@ -283,6 +303,12 @@ class DataSet():
         self.build_scelleton(Op_list,x_is=self.rand_train_x_is)
 
     def renew_rand_train_xis_Ys(self,num_rand=None,phantom_path=None):
+        """renews the y_i of the fixed Xis object
+
+        Args:
+            num_rand (_type_, optional): if none then =c-.num_rand. Defaults to None. 
+            phantom_path (_type_, optional): if none new phantoms are created. Defaults to None.
+        """
         if num_rand is None:
             num_rand = self.c.num_rand
         for op,l in Xis_Op_iterator(self.rand_train_x_is):
@@ -294,6 +320,18 @@ class DataSet():
     	
 
     def get_true_operators_list(self,num = 10,shiftparams_list=None,random_order=False,random_shifts=False,random_shift_components=10):
+        """ get precise operators (unused)
+
+        Args:
+            num (int, optional): number of operators crated. Defaults to 10.
+            shiftparams_list (_type_, optional):if none =c.shift_params_list . Defaults to None.
+            random_order (bool, optional): rnadom oreder of of the shifts from list . Defaults to False.
+            random_shifts (bool, optional): does notihng at the moment. Defaults to False.
+            random_shift_components (int, optional): is not used. Defaults to 10.
+
+        Returns:
+            _type_: _description_
+        """
         if shiftparams_list is None:
             shiftparams_list = self.c.shift_params_list
         true_op_list = list()
@@ -312,6 +350,15 @@ class DataSet():
         # random is missing
 
     def load_true_operators_list(self,path,num = 10):
+        """precise operators are loaded from a liste
+
+        Args:
+            path (_type_): path to folder with single operators
+            num (int, optional): how many schould be loaded (has no safty stop). Defaults to 10.
+
+        Returns:
+            _type_: _description_
+        """
         Op_list = list()
         for i in tqdm(range(num)):
             A_s = sparse.load_npz(path+f'ray_trafo_{i}.npz')
@@ -319,6 +366,14 @@ class DataSet():
         return Op_list
         
     def x_0_chooser(self,selection_rule = '0'):
+        """ retruns function to choose x_0
+
+        Args:
+            selection_rule (str, optional): selts the rule for seletion '0' gives x_0 =0_X and 'adj' gives A_static^*y_e.  Defaults to '0'.
+
+        Returns:
+            _type_: fution to select x_0 depending on y_e
+        """
         if selection_rule == '0':
             return self.x_0_is_0
         elif selection_rule == 'adj':
@@ -330,6 +385,16 @@ class DataSet():
     
 
     def update_x_is(self,fw_model,adj_model,iteration,step_op = None,num_of_ops = -1,rand_choice=False) -> None:
+        """compute new x_is with te trained models
+
+        Args:
+            fw_model (_type_): forward model
+            adj_model (_type_): adjoint model
+            iteration (_type_): maximal i to what we compute the x_i
+            step_op (_type_, optional): operator to compute the next iterate. If None self.step_op is used. Defaults to None.
+            num_of_ops (int, optional):  not used. Defaults to -1.
+            rand_choice (bool, optional): not used. Defaults to False.
+        """
         if step_op is None:
             step_op = self.step_op
         cor_op = get_net_corected_operator(self.static_op, fw_model,device = self.device,swaped=self.c.forward_swaped)
@@ -359,6 +424,7 @@ class DataSet():
                 l.append(self.add_phantom_line(op,**dic))
 
     def add_line(self,y,l,get_x_0,num_iter,step_op,cor_op,cor_adj_op):
+        #creating a line of x_i from y_e and x_0
         F_abl = lambda x: cor_adj_op(cor_op(x)-y)
         l.clear()
         l.append(get_x_0(y))
@@ -366,6 +432,7 @@ class DataSet():
             l.append(step_op(l[-1],F_abl(l[-1])))
     
     def add_phantom_line(self,true_op,num_iter,step_op,cor_op,cor_adj_op):
+        #creating a line of x_i from y_e and x_0=p
         p = self.get_train_phantoms(num_fixed=0,num_rand=1)[0]
         y = true_op(p)
         p_e = error_for_y(p,self.c.rand_phantoms_e_p)
@@ -378,6 +445,13 @@ class DataSet():
         return y_l_list
 
     def update_x_is_true_op(self,iteration,num_rand_phantoms = None,step_op = None) -> None:
+        """computes updates with the tru operators instead of the correted onse
+
+        Args:
+            iteration (_type_): number of iterations that schould be computed
+            num_rand_phantoms (_type_, optional): If none c.num_rad_phantoms . Defaults to None.
+            step_op (_type_, optional): function to compute the next iterarte depending on x and grad Fx If none c.step_op is used. Defaults to None.
+        """
         if step_op is None:
             step_op = self.step_op
         if num_rand_phantoms is None:
@@ -412,6 +486,16 @@ class DataSet():
                 l_y.append(self.add_phantom_line(op,**dic))
 
     def append_fw_data(self,x_is : Xis ,dataset = list(),selection_rule = None):
+        """creates forward trining points and ads them to an existin list
+
+        Args:
+            x_is (Xis):x_is for generation of the training points
+            dataset (_type_, optional): dataset that schould be appended. Defaults to list().
+            selection_rule (_type_, optional): selection rule for wich training points schold be contained. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         if selection_rule is None:
             selection_rule = self.c.fw_data_selection_rule
         
@@ -494,6 +578,15 @@ class DataSet():
         return dataset    
 
     def get_fw_data(self,data_name:str,selection_rule = None):
+        """gives back a datset for training the forward model
+
+        Args:
+            data_name (str): trian or val
+            selection_rule (_type_, optional): rule for which trining points to select. If None c.fw_selecton _ule is used.  Defaults to None. 
+
+        Returns:
+            list: forward trining data iin a list
+        """
         data_set = list()
         if data_name == 'val':
             data_set = self.append_fw_data(self.val_x_is,data_set,selection_rule)
@@ -503,6 +596,17 @@ class DataSet():
         return data_set
 
     def append_adj_data(self,fw_model,x_is : Xis ,dataset = list(),selection_rule = None):
+        """apped a list with trining poins for the adjoint model
+
+        Args:
+            fw_model (_type_): forward model
+            x_is (Xis): X_is to compute the training points
+            dataset (_type_, optional): list which is to be appended. Defaults to list().
+            selection_rule (_type_, optional): selection rule for wich training points schold be contained. Defaults to None.
+
+        Returns:
+            _type_: list with new appended traning sets
+        """
         if selection_rule is None:
             selection_rule = self.c.fw_data_selection_rule
         cor_op = get_net_corected_operator(self.static_op, fw_model,device = self.device,swaped=self.c.forward_swaped)
@@ -575,6 +679,15 @@ class DataSet():
         return dataset  
     
     def get_adj_data(self,fw_model,data_name:str,selection_rule = None):
+        """gives back a datset for training the adjoint model
+
+        Args:
+            data_name (str): trian or val
+            selection_rule (_type_, optional): rule for which trining points to select. If None c.adj_selecton _ule is used.  Defaults to None. 
+
+        Returns:
+            list: adjoint trining data in a list
+        """
         data_set = list()
         if data_name == 'val':
             data_set = self.append_adj_data(fw_model,self.val_x_is,data_set,selection_rule)
@@ -682,6 +795,7 @@ class DataSet():
         
 
 class fw_Train_sets():
+    # class that stores the dataset and can give back rando smples acording to seletion rule ready for forward training
     def __init__(self,data_set:DataSet, max_len_dataset = None):
         self.D = data_set
         self.c = data_set.c
@@ -712,6 +826,7 @@ class fw_Train_sets():
         return train_loader
 
 class adj_Train_sets():
+    # class that stores the dataset and can give back rando smples acording to seletion rule ready for adjoint training
     def __init__(self,data_set:DataSet,fw_model, max_len_dataset = None):
         self.D = data_set
         self.c = data_set.c

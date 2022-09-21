@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 30 18:35:19 2022
-
-@author: Student
+functions to bulid the neural network for the corrections
 """
 import torch.nn as nn
 import torch

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Feb  6 12:15:54 2022
-Playing around to get a Raytransform operater "true" and "static" both with adjoint
-@author: Student
+using the odl library to get radon transform unfotunally the adjoint of them is mostly not usable
 """
 
 import numpy as np

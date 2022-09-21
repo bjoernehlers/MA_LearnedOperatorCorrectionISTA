@@ -1,3 +1,7 @@
+    # """
+    # creates a random sparcer matrix shift dataset depending on the parameters
+    # """
+
 import numpy as np
 from scipy import sparse
 from ray_transforms import get_ray_trafo
@@ -15,15 +19,7 @@ rand_shift_dict.update({"freq_range":[500,5000]})
 rand_shift_dict.update({"freq_shift_range":[0,2*np.pi]})
 rand_shift_dict
 
-# path = 'Matritzen/64_64_256_96_5addet_shift_gpu/'
-# check_path(path)
-# for i in range(100):
-#     shift_params = rand_shift_params(**rand_shift_dict)
-#     shift = get_shift(shift_params)
-#     np.save(file = path + f'shift_params_{i}', arr = shift_params) 
-#     ray_trafo = get_ray_trafo(x_res,y_res,n_ang,n_dtp,DET_SHIFT = shift,detector_len=2,impl='astra_cuda')
-#     A_s = sparse_Mat(ray_trafo,x_res,y_res,n_ang,n_dtp)
-#     sparse.save_npz(path+f'ray_trafo_{i}.npz',A_s)
+
 
 path = 'Matritzen/64_64_256_96_5addet_shift_cpu/'
 check_path(path)
