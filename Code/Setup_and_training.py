@@ -18,7 +18,7 @@ from util import get_op,sparse_Mat,Timer,added_estimate,error_for_y
 from training_functions import train_loop,val_loop
 from Test_Model import Test,save_plot_Test
 from test_model_functions_swaped import get_net_corected_operator
-from Discord_bote import sende_den_boten
+#from Discord_bote import sende_den_boten
 import torch 
 import torch.nn as nn
 import odl
@@ -274,7 +274,7 @@ timer.finished()
 images =  []
 images.append(f"{c.path}"+"complete_losses.png")
 images.append(test_path+f'test_plot_iter_{i}.png')
-sende_den_boten(f'Server is fertig auf GPU {c.gpu_idx}',images)
+#sende_den_boten(f'Server is fertig auf GPU {c.gpu_idx}',images)
 print('fwlr')
 
     
